@@ -205,8 +205,8 @@ target_include_directories(apng INTERFACE ${apng_SOURCE_DIR})
 add_library(tinyexr INTERFACE)
 
 FetchContent_Declare(tinyexr
-	GIT_REPOSITORY https://github.com/blitz-research/tinyexr.git
-	GIT_TAG release
+	GIT_REPOSITORY https://github.com/syoyo/tinyexr.git
+	GIT_TAG v3.2.0
 	GIT_SUBMODULES ""
 	GIT_SHALLOW TRUE
 	EXCLUDE_FROM_ALL
