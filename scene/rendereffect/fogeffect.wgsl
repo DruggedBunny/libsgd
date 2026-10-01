@@ -38,8 +38,10 @@ struct Varying {
 
     let color = textureSampleLevel(effect_sourceTexture, effect_sourceSampler, in.texCoords, 0);
 
-    // Depth buffer depth
-    let tz = textureSampleLevel(effect_depthTexture, effect_depthSampler, in.texCoords, 0);
+    // Depth buffer depth. Depth textures can't be used with a filtering sampler, so just load the texel.
+    let depthSize = vec2i(textureDimensions(effect_depthTexture));
+    let depthCoords = clamp(vec2i(in.texCoords * vec2f(depthSize)), vec2i(0), depthSize - 1);
+    let tz = textureLoad(effect_depthTexture, depthCoords, 0);
 
     // Hack to show skybox
     if tz == 1.0 {return color;}
