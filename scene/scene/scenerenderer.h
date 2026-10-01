@@ -86,6 +86,11 @@ struct SceneRenderer : Shared {
 	Texture* outputTexture()const;
 
 private:
+	// Experimental per-light shadow caster culling
+	Vector<Vector<RenderOp>> m_culledShadowOps; // one op list per unique light sphere
+	Vector<int> m_passCullIndex;				// per shadow pass: index into m_culledShadowOps, or -1
+	void buildCulledShadowOps();
+
 	Vec2u m_renderTargetSize;
 
 	TexturePtr m_renderTarget;

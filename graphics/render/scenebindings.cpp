@@ -245,6 +245,7 @@ void SceneBindings::addPSMPasses() const {
 
 			((Buffer*)pass->sceneBindings->getBuffer(cameraUniformsBinding))->update(&uniforms, 0, sizeof(uniforms));
 
+			pass->cull = Vec4f(light.position.xyz(), light.range);
 			m_shadowPasses.push_back(*pass++);
 		}
 	}
@@ -311,6 +312,7 @@ void SceneBindings::addSSMPasses() const {
 
 		ssmMatrices.push_back(uniforms.viewProjectionMatrix);
 
+		pass->cull = Vec4f(light.worldMatrix.t.xyz(), light.range);
 		m_shadowPasses.push_back(*pass++);
 	}
 	((Buffer*)m_bindGroup->getBuffer(ssmMatricesBinding))->update(ssmMatrices.data(), 0, ssmMatrices.size() * sizeof(Mat4f));

@@ -19,6 +19,7 @@ SGD_BOOL_CONFIG_VAR(g_vsyncEnabled, "render.vsyncEnabled", false);
 SGD_BOOL_CONFIG_VAR(g_timeStampsEnabled, "render.timeStampsEnabled", true);
 
 SGD_BOOL_CONFIG_VAR(g_shadowPassEnabled, "render.shadowPassEnabled", true);
+SGD_BOOL_CONFIG_VAR(g_shadowCullEnabled, "render.shadowCullEnabled", true);
 SGD_BOOL_CONFIG_VAR(g_opaquePassEnabled, "render.opaquePassEnabled", true);
 SGD_BOOL_CONFIG_VAR(g_blendPassEnabled, "render.blendPassEnabled", true);
 SGD_BOOL_CONFIG_VAR(g_effectPassEnabled, "render.effectPassEnabled", true);
@@ -239,6 +240,43 @@ void SceneRenderer::updateLightingUniforms() {
 	m_sceneBindings->unlockLightingUniforms();
 }
 
+void SceneRenderer::buildCulledShadowOps() {
+
+	m_culledShadowOps.clear();
+	m_passCullIndex.clear();
+	if (!g_shadowCullEnabled) return;
+
+	auto passes = m_sceneBindings->shadowPasses();
+
+	// Unique light spheres (the 6 faces of a point light share one)
+	Vector<Vec4f> spheres;
+	m_passCullIndex.resize(passes.size(), -1);
+	for (size_t i = 0; i < passes.size(); ++i) {
+		auto c = passes[i].cull;
+		if (c.w <= 0) continue;
+		int found = -1;
+		for (size_t s = 0; s < spheres.size(); ++s) {
+			if (spheres[s].x == c.x && spheres[s].y == c.y && spheres[s].z == c.z && spheres[s].w == c.w) found = (int)s;
+		}
+		if (found < 0) {
+			found = (int)spheres.size();
+			spheres.push_back(c);
+		}
+		m_passCullIndex[i] = found;
+	}
+	if (spheres.empty()) return;
+
+	m_modelRenderer->cullShadowOps(spheres, m_culledShadowOps);
+
+	// Prepend everything in the shared shadow list that did not come from the model renderer's opaque instances
+	auto modelBG = m_modelRenderer->opaqueBindGroup()->wgpuBindGroup().Get();
+	Vector<RenderOp> baseOps;
+	for (auto& op : m_renderQueue->renderOps(RenderPassType::shadow)) {
+		if (op.renderer.Get() != modelBG) baseOps.push_back(op);
+	}
+	for (auto& ops : m_culledShadowOps) ops.insert(ops.begin(), baseOps.begin(), baseOps.end());
+}
+
 void SceneRenderer::render() {
 
 	m_camera = !m_cameras.empty() ? m_cameras.front() : nullptr;
@@ -266,6 +304,7 @@ void SceneRenderer::render() {
 			m_planeRenderer->render(m_renderQueue);
 			m_terrainRenderer->render(m_renderQueue);
 			m_modelRenderer->render(m_renderQueue);
+			buildCulledShadowOps();
 			m_skinnedModelRenderer->render(m_renderQueue);
 			m_spriteRenderer->render(m_renderQueue);
 			m_overlayRenderer->render(m_overlayQueue);
@@ -304,7 +343,16 @@ void SceneRenderer::renderAsync() {
 
 	// Shadows
 	if (timeStampsEnabled) m_wgpuCommandEncoder.WriteTimestamp(m_timeStampQueries, 0);
+	size_t passIndex = 0;
 	for (auto& pass : m_sceneBindings->shadowPasses()) {
+		int cullIndex = passIndex < m_passCullIndex.size() ? m_passCullIndex[passIndex] : -1;
+		++passIndex;
+		if (cullIndex >= 0) {
+			m_renderContext->beginRenderPass(RenderPassType::shadow, nullptr, pass.renderTarget, {}, 1, pass.sceneBindings);
+			if (g_shadowPassEnabled) m_renderContext->render(m_culledShadowOps[cullIndex]);
+			m_renderContext->endRenderPass();
+			continue;
+		}
 		renderGeometry(m_renderQueue, RenderPassType::shadow, nullptr, pass.renderTarget, {}, 1, //
 					   pass.sceneBindings, g_shadowPassEnabled);
 	}

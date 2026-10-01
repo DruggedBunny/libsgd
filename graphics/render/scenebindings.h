@@ -12,6 +12,8 @@ struct SceneBindings : GraphicsResource {
 	struct ShadowPass {
 		TexturePtr renderTarget;
 		BindGroupPtr sceneBindings;
+		// Experimental: light bounding sphere (eye-relative xyz, radius w) for caster culling. w < 0 = don't cull.
+		Vec4f cull{0, 0, 0, -1};
 	};
 
 	SceneBindings();

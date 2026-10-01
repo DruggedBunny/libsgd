@@ -3,6 +3,7 @@
 #include "model.h"
 
 #include <graphics/exports.h>
+#include <graphics/render/renderop.h>
 
 namespace sgd {
 
@@ -19,7 +20,18 @@ struct ModelRenderer : Shared {
 	void update(CVec3r eye);
 	void render(RenderQueue* rq) const;
 
+	// Experimental: build per-light shadow draw ops containing only instances inside each light sphere
+	// (eye-relative xyz, radius w). Instances are compacted into a separate instance buffer.
+	void cullShadowOps(CVector<Vec4f> spheres, Vector<Vector<RenderOp>>& out);
+
+	BindGroup* opaqueBindGroup() const {
+		return m_opaqueRenderer->bindGroup();
+	}
+
 private:
+	Vec3r m_eye;
+	MeshRendererPtr m_shadowRenderer;
+
 	struct OpaqueInstanceList {
 		Vector<CModel*> models;
 	};

@@ -2,6 +2,9 @@
 
 #include "model.h"
 
+#include <graphics/render/renderqueue.h>
+#include <cstring>
+
 namespace sgd {
 
 namespace {}
@@ -9,7 +12,8 @@ namespace {}
 ModelRenderer::ModelRenderer()
 	:										  //
 	  m_opaqueRenderer(new MeshRenderer()),	  //
-	  m_blendedRenderer(new MeshRenderer()) { //
+	  m_blendedRenderer(new MeshRenderer()),  //
+	  m_shadowRenderer(new MeshRenderer()) {  //
 }
 
 void ModelRenderer::add(CModel* model) {
@@ -88,6 +92,8 @@ void ModelRenderer::remove(CModel* model) {
 }
 
 void ModelRenderer::update(CVec3r eye) {
+
+	m_eye = eye;
 
 	// Update opaque instances
 	if (!m_opaqueLists.empty()) {
@@ -183,6 +189,93 @@ void ModelRenderer::render(RenderQueue* rq) const {
 			}
 		}
 	}
+}
+
+void ModelRenderer::cullShadowOps(CVector<Vec4f> spheres, Vector<Vector<RenderOp>>& out) {
+
+	static RenderQueuePtr scratch(new RenderQueue());
+
+	out.clear();
+	out.resize(spheres.size());
+
+	// Once per frame: instance data + world bounding sphere for every opaque model, grouped by mesh.
+	struct Cand {
+		MeshInstance inst;
+		Vec4f sphere; // world center (eye-relative) xyz, radius w
+	};
+	struct MeshCands {
+		CMesh* mesh;
+		Vector<Cand> cands;
+	};
+	Vector<MeshCands> groups;
+	groups.reserve(m_opaqueLists.size());
+	for (auto& kv : m_opaqueLists) {
+		CMesh* mesh = kv.first;
+		if (!mesh->shadowsEnabled()) continue;
+		groups.emplace_back();
+		auto& g = groups.back();
+		g.mesh = mesh;
+		g.cands.reserve(kv.second->models.size());
+
+		Boxf b = mesh->bounds();
+		if (b.min.x > b.max.x) { // never computed
+			const_cast<Mesh*>(mesh)->updateBounds();
+			b = mesh->bounds();
+		}
+		Vec3f lc = (b.min + b.max) * 0.5f;
+		float lr = length(b.max - b.min) * 0.5f;
+
+		for (CModel* model : kv.second->models) {
+			Cand c;
+			c.inst.worldMatrix = model->worldMatrix();
+			c.inst.worldMatrix.t.xyz() -= m_eye;
+			c.inst.color = model->pmColor();
+			Vec3f ax = c.inst.worldMatrix.i.xyz(), ay = c.inst.worldMatrix.j.xyz(), az = c.inst.worldMatrix.k.xyz();
+			Vec3f wc = c.inst.worldMatrix.t.xyz() + ax * lc.x + ay * lc.y + az * lc.z;
+			c.sphere = Vec4f(wc, lr * std::max(length(ax), std::max(length(ay), length(az))));
+			g.cands.push_back(c);
+		}
+	}
+
+	Vector<MeshInstance> insts;
+	insts.reserve(m_numOpaqueInsts);
+
+	for (size_t si = 0; si < spheres.size(); ++si) {
+
+		Vec3f lightPos = spheres[si].xyz();
+		float lightRadius = spheres[si].w;
+
+		for (auto& g : groups) {
+
+			uint32_t first = (uint32_t)insts.size();
+
+			for (auto& c : g.cands) {
+				float dx = c.sphere.x - lightPos.x, dy = c.sphere.y - lightPos.y, dz = c.sphere.z - lightPos.z;
+				float reach = lightRadius + c.sphere.w;
+				if (dx * dx + dy * dy + dz * dz > reach * reach) continue;
+				insts.push_back(c.inst);
+			}
+
+			uint32_t count = (uint32_t)insts.size() - first;
+			if (!count) continue;
+
+			CMesh* mesh = g.mesh;
+			scratch->clear();
+			if (bool(mesh->flags() & MeshFlags::blendedSurfaces)) {
+				for (Surface* surf : mesh->surfaces()) {
+					if (surf->material()->blendMode() == BlendMode::alphaBlend) continue;
+					m_shadowRenderer->render(scratch, surf, count, first);
+				}
+			} else {
+				m_shadowRenderer->render(scratch, mesh, count, first);
+			}
+			for (auto& op : scratch->renderOps(RenderPassType::shadow)) out[si].push_back(op);
+		}
+	}
+
+	auto instp = m_shadowRenderer->lockInstances(std::max<uint32_t>(1, (uint32_t)insts.size()));
+	if (!insts.empty()) std::memcpy(instp, insts.data(), insts.size() * sizeof(MeshInstance));
+	m_shadowRenderer->unlockInstances();
 }
 
 } // namespace sgd
