@@ -232,11 +232,14 @@ if (SGD_OS_EMSCRIPTEN)
 
 else ()
 
+	# Upstream glfw plus Mark Sibly's expanded gamepad mapping table (src/mappings.h, ~800 more GUIDs than upstream,
+	# taken from blitz-research/glfw@02ca4ed20).
 	FetchContent_Declare(glfw
-		GIT_REPOSITORY https://github.com/blitz-research/glfw.git
-		GIT_TAG master
+		GIT_REPOSITORY https://github.com/glfw/glfw.git
+		GIT_TAG 3.5.1
 		GIT_SUBMODULES ""
 		GIT_SHALLOW TRUE
+		PATCH_COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/patches/glfw_mappings.h <SOURCE_DIR>/src/mappings.h
 		EXCLUDE_FROM_ALL
 	)
 
