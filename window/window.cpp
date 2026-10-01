@@ -13,6 +13,8 @@
 
 #include <GLFW/glfw3native.h>
 
+#include <windows.h>
+
 #undef min
 #undef max
 
@@ -80,6 +82,19 @@ Window::Window(CVec2u size, CString title, WindowFlags flags) : m_flags(flags) {
 			m_flags = flags;
 			m_glfwWindow = glfwCreateWindow((int)size.x, (int)size.y, m_title.c_str(), monitor, nullptr);
 			glfwSetWindowUserPointer(m_glfwWindow, this);
+
+#if SGD_OS_WINDOWS
+			// A new window shows white until the first frame is presented, which looks like a hang if startup is slow.
+			// GLFW suppresses WM_ERASEBKGND so a class brush won't help; just paint the client area black ourselves.
+			if (auto hwnd = glfwGetWin32Window(m_glfwWindow)) {
+				if (auto dc = GetDC(hwnd)) {
+					RECT rect;
+					GetClientRect(hwnd, &rect);
+					FillRect(dc, &rect, (HBRUSH)GetStockObject(BLACK_BRUSH));
+					ReleaseDC(hwnd, dc);
+				}
+			}
+#endif
 
 			glfwSetWindowSizeCallback(m_glfwWindow, [](GLFWwindow* glfwWindow, int w, int h) { //
 				auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
