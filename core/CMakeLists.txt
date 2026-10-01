@@ -50,6 +50,6 @@ if (SGD_OS_EMSCRIPTEN)
 	#    em_link_js_library(core "${PROJECT_SOURCE_DIR}/jsutils.js")
 endif ()
 
-target_link_libraries(core libcurl json11)
+target_link_libraries(core CURL::libcurl json11)
 
 add_subdirectory(tests)

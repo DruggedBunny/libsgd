@@ -57,8 +57,8 @@ message("### Configuring Curl...")
 if (NOT SGD_OS_EMSCRIPTEN)
 
 	FetchContent_Declare(libcurl
-		GIT_REPOSITORY https://github.com/blitz-research/curl.git
-		GIT_TAG master
+		GIT_REPOSITORY https://github.com/curl/curl.git
+		GIT_TAG curl-8_22_0
 		GIT_SUBMODULES ""
 		GIT_SHALLOW TRUE
 		EXCLUDE_FROM_ALL
