@@ -268,8 +268,6 @@ Expected<TextureData*, FileioEx> loadTextureData(CData fileData, TextureFormat f
 		//
 		// Use STB 8
 		//
-		SGD_LOG << "### Loading STB 8";
-		//
 		Vec2i size{};
 		int channels{};
 		auto img = stbi_load_from_memory(fileData.data(), (int)fileData.size(), &size.x, &size.y, &channels, 4);
