@@ -58,42 +58,42 @@ void BindGroup::setResource(uint32_t index, CGraphicsResource* resource) {
 
 void BindGroup::setBuffer(uint32_t index, CBuffer* buffer) {
 	SGD_ASSERT(index < m_desc->wgpuBindGroupLayoutEntries.size());
-	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].buffer.type != wgpu::BufferBindingType::Undefined);
+	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].buffer.type != wgpu::BufferBindingType::BindingNotUsed);
 
 	setResource(index, buffer);
 }
 
 CBuffer* BindGroup::getBuffer(uint32_t index) const {
 	SGD_ASSERT(index < m_desc->wgpuBindGroupLayoutEntries.size());
-	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].buffer.type != wgpu::BufferBindingType::Undefined);
+	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].buffer.type != wgpu::BufferBindingType::BindingNotUsed);
 
 	return m_resources[index] ? m_resources[index]->as<const Buffer>() : nullptr;
 }
 
 void BindGroup::setTexture(uint32_t index, CTexture* texture, bool setSampler) {
 	SGD_ASSERT(index < m_desc->wgpuBindGroupLayoutEntries.size());
-	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].texture.sampleType != wgpu::TextureSampleType::Undefined);
+	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].texture.sampleType != wgpu::TextureSampleType::BindingNotUsed);
 
 	setResource(index, texture);
 
 	if (!setSampler) return;
 
 	SGD_ASSERT(index + 1 < m_desc->wgpuBindGroupLayoutEntries.size() &&
-			   m_desc->wgpuBindGroupLayoutEntries[index + 1].sampler.type != wgpu::SamplerBindingType::Undefined);
+			   m_desc->wgpuBindGroupLayoutEntries[index + 1].sampler.type != wgpu::SamplerBindingType::BindingNotUsed);
 
 	setResource(index + 1, texture);
 }
 
 void BindGroup::setSampler(uint32_t index, CTexture* texture) {
 	SGD_ASSERT(index < m_desc->wgpuBindGroupLayoutEntries.size());
-	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].sampler.type != wgpu::SamplerBindingType::Undefined);
+	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].sampler.type != wgpu::SamplerBindingType::BindingNotUsed);
 
 	setResource(index, texture);
 }
 
 CTexture* BindGroup::getTexture(uint32_t index) const {
 	SGD_ASSERT(index < m_desc->wgpuBindGroupLayoutEntries.size());
-	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].texture.sampleType != wgpu::TextureSampleType::Undefined);
+	SGD_ASSERT(m_desc->wgpuBindGroupLayoutEntries[index].texture.sampleType != wgpu::TextureSampleType::BindingNotUsed);
 
 	return m_resources[index] ? m_resources[index]->as<const Texture>() : nullptr;
 }
@@ -108,11 +108,11 @@ void BindGroup::onValidate() const {
 
 	for (int i = 0; i < entries.size(); ++i) {
 		entries[i].binding = i;
-		if (bglEntries[i].buffer.type != wgpu::BufferBindingType::Undefined) {
+		if (bglEntries[i].buffer.type != wgpu::BufferBindingType::BindingNotUsed) {
 			entries[i].buffer = m_resources[i]->as<const Buffer>()->wgpuBuffer();
-		} else if (bglEntries[i].texture.sampleType != wgpu::TextureSampleType::Undefined) {
+		} else if (bglEntries[i].texture.sampleType != wgpu::TextureSampleType::BindingNotUsed) {
 			entries[i].textureView = m_resources[i]->as<const Texture>()->wgpuTextureView();
-		} else if (bglEntries[i].sampler.type != wgpu::SamplerBindingType::Undefined) {
+		} else if (bglEntries[i].sampler.type != wgpu::SamplerBindingType::BindingNotUsed) {
 			entries[i].sampler = m_resources[i]->as<const Texture>()->wgpuSampler();
 		} else {
 			SGD_ABORT();

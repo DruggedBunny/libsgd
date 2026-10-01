@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
 project(external)
 
@@ -21,12 +21,20 @@ if (SGD_OS_EMSCRIPTEN)
 else ()
 
 	FetchContent_Declare(dawn
-		GIT_REPOSITORY https://github.com/blitz-research/dawn.git
-		GIT_TAG develop
+		# Same Dawn release as emsdk 6.0.8's emdawnwebgpu port, so desktop and web share one webgpu.h API.
+		GIT_REPOSITORY https://github.com/google/dawn.git
+		GIT_TAG v20260423.175430
 		GIT_SUBMODULES ""
 		GIT_SHALLOW TRUE
 		EXCLUDE_FROM_ALL
 	)
+	# LibSGD links the static CRT (see root CMakeLists.txt); abseil defaults to the DLL CRT.
+	set(ABSL_MSVC_STATIC_RUNTIME ON CACHE BOOL "" FORCE)
+	# Load d3dcompiler_47.dll from System32. Otherwise Dawn only looks beside the exe/module (it copies one from the
+	# Windows SDK at build time) and fails with "DynamicLib.Open: d3dcompiler_47.dll Windows Error: 87".
+	if (SGD_OS_WINDOWS)
+		set(DAWN_FORCE_SYSTEM_COMPONENT_LOAD ON CACHE BOOL "" FORCE)
+	endif ()
 	set(DAWN_BUILD_MONOLITHIC_LIBRARY OFF)
 	set(DAWN_FETCH_DEPENDENCIES ON)
 	set(DAWN_BUILD_SAMPLES OFF)
@@ -286,9 +294,10 @@ target_include_directories(tcpp INTERFACE ${tcpp_SOURCE_DIR}/source)
 
 ##### imgui #####
 
+# The WGPU backend tracks webgpu.h, so keep imgui in step with the Dawn release above.
 FetchContent_Declare(imgui
-	GIT_REPOSITORY https://github.com/blitz-research/imgui.git
-	GIT_TAG master
+	GIT_REPOSITORY https://github.com/ocornut/imgui.git
+	GIT_TAG v1.92.7
 	GIT_SUBMODULES ""
 	GIT_SHALLOW TRUE
 	EXCLUDE_FROM_ALL

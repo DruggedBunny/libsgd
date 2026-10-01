@@ -345,7 +345,7 @@ void SceneRenderer::renderAsync() {
 		// ms = millis() - ms;
 		//	SGD_LOG << "Wait for work done ms:"<<ms;
 		m_wgpuWorkDone = currentGC()->wgpuDevice().GetQueue().OnSubmittedWorkDone( //
-			wgpu::CallbackMode::WaitAnyOnly, [this](wgpu::QueueWorkDoneStatus status) {});
+			wgpu::CallbackMode::WaitAnyOnly, [](wgpu::QueueWorkDoneStatus status, char const* message) {});
 	}
 
 	m_renderContext->endRender();

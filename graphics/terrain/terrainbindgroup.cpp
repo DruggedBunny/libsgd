@@ -9,13 +9,14 @@ auto shaderSource{
 };
 
 wgpu::VertexAttribute vertexAttribs[]{
-	{wgpu::VertexFormat::Float32x3, 0, 0}, // Vec3f position
-	{wgpu::VertexFormat::Unorm8x4, 12, 1}, // uint32_t RGBA
+	{nullptr, wgpu::VertexFormat::Float32x3, 0, 0}, // Vec3f position
+	{nullptr, wgpu::VertexFormat::Unorm8x4, 12, 1}, // uint32_t RGBA
 };
 static_assert(sizeof(TerrainVertex) == 16);
 
-wgpu::VertexBufferLayout const vertexBufferLayout{sizeof(TerrainVertex),		//
+wgpu::VertexBufferLayout const vertexBufferLayout{nullptr,						//
 												  wgpu::VertexStepMode::Vertex, //
+												  sizeof(TerrainVertex),		//
 												  std::size(vertexAttribs),		//
 												  vertexAttribs};
 

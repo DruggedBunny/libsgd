@@ -162,11 +162,11 @@ void copyTexture(const wgpu::Device& device, const wgpu::Texture& srcTexture, CV
 		return;
 	}
 
-	wgpu::ImageCopyTexture src{};
+	wgpu::TexelCopyTextureInfo src{};
 	src.texture = srcTexture;
 	src.origin = {srcOrigin.x, srcOrigin.y, 0};
 
-	wgpu::ImageCopyTexture dst{};
+	wgpu::TexelCopyTextureInfo dst{};
 	dst.texture = dstTexture;
 	dst.origin = {dstOrigin.x, dstOrigin.y, 0};
 

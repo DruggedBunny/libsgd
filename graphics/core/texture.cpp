@@ -195,10 +195,10 @@ void Texture::updateTexture() const {
 void Texture::updateData() const {
 	auto gc = currentGC();
 
-	wgpu::ImageCopyTexture dst{};
+	wgpu::TexelCopyTextureInfo dst{};
 	dst.texture = m_wgpuTexture;
 
-	wgpu::TextureDataLayout layout{};
+	wgpu::TexelCopyBufferLayout layout{};
 	layout.bytesPerRow = m_data->pitch();
 	layout.rowsPerImage = m_size.y;
 

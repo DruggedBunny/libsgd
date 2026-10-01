@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
 # TODO: Fix weird issue where you can't just clean and build, you first need to remove nodejs cmake binary dir, then reconfigure and build.
 # Only started after changing build from MinSizeRel to Release.

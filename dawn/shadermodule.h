@@ -10,7 +10,12 @@ constexpr wgpu::BindGroupLayoutEntry bufferBindGroupLayoutEntry( //
 	uint32_t binding,											 //
 	wgpu::ShaderStage visibility,								 //
 	wgpu::BufferBindingType bindingType) {
-	return wgpu::BindGroupLayoutEntry{nullptr, binding, visibility, {nullptr, bindingType}, {}, {}};
+	// Unused binding layouts default to BindingNotUsed; spelling them as {} would give the invalid Undefined.
+	wgpu::BindGroupLayoutEntry entry{};
+	entry.binding = binding;
+	entry.visibility = visibility;
+	entry.buffer.type = bindingType;
+	return entry;
 }
 
 constexpr wgpu::BindGroupLayoutEntry textureBindGroupLayoutEntry(				//
@@ -18,14 +23,23 @@ constexpr wgpu::BindGroupLayoutEntry textureBindGroupLayoutEntry(				//
 	wgpu::ShaderStage visibility,												//
 	wgpu::TextureViewDimension viewDimension = wgpu::TextureViewDimension::e2D, //
 	wgpu::TextureSampleType sampleType = wgpu::TextureSampleType::Float) {
-	return wgpu::BindGroupLayoutEntry{nullptr, binding, visibility, {}, {}, {nullptr, sampleType, viewDimension}};
+	wgpu::BindGroupLayoutEntry entry{};
+	entry.binding = binding;
+	entry.visibility = visibility;
+	entry.texture.sampleType = sampleType;
+	entry.texture.viewDimension = viewDimension;
+	return entry;
 }
 
 constexpr wgpu::BindGroupLayoutEntry samplerBindGroupLayoutEntry( //
 	uint32_t binding,											  //
 	wgpu::ShaderStage visibility,								  //
 	wgpu::SamplerBindingType bindingType = wgpu::SamplerBindingType::Filtering) {
-	return wgpu::BindGroupLayoutEntry{nullptr, binding, visibility, {}, {nullptr, bindingType}, {}};
+	wgpu::BindGroupLayoutEntry entry{};
+	entry.binding = binding;
+	entry.visibility = visibility;
+	entry.sampler.type = bindingType;
+	return entry;
 }
 
 inline wgpu::BindGroupEntry bufferBindGroupEntry(uint32_t binding, wgpu::Buffer buffer) { //

@@ -32,9 +32,11 @@ bool g_validationEnabled = true;
 auto init0 =
 	configVarChanged("dawn.validationEnabled").connect(nullptr, [](CString value) { g_validationEnabled = truthiness(value); });
 
-bool g_robustnessEnabled = true;
+// Off by default: with the current Dawn/Tint, shader robustness (bounds clamping) costs ~8ms/frame on the complex_demo
+// benchmark with FXC, vs ~0.5ms with it off. LibSGD's shaders are internal. Set dawn.robustnessEnabled=true to restore.
+bool g_robustnessEnabled = false;
 auto init1 =
-	configVarChanged("dawn.robustnessEnabled").connect(nullptr, [](CString value) { g_validationEnabled = truthiness(value); });
+	configVarChanged("dawn.robustnessEnabled").connect(nullptr, [](CString value) { g_robustnessEnabled = truthiness(value); });
 
 String wgpuStringViewToString(const wgpu::StringView& sv) {
 	if(!sv.IsUndefined()) return String(sv);
@@ -42,12 +44,33 @@ String wgpuStringViewToString(const wgpu::StringView& sv) {
 };
 
 Vector<const char*> g_enabledToggles;
+Vector<const char*> g_disabledToggles;
+
+// Debug aid: extra Dawn toggles from the environment, comma separated.
+void addEnvToggles(const char* envName, Vector<const char*>& toggles) {
+	static Vector<String> storage;
+	storage.reserve(64);
+	auto env = std::getenv(envName);
+	if (!env || !*env) return;
+	String list = env;
+	size_t pos = 0;
+	while (pos <= list.size()) {
+		auto end = list.find(',', pos);
+		if (end == String::npos) end = list.size();
+		if (end > pos && storage.size() < 64) {
+			storage.push_back(list.substr(pos, end - pos));
+			toggles.push_back(storage.back().c_str());
+		}
+		pos = end + 1;
+	}
+}
 Vector<wgpu::FeatureName> g_requiredFeatures;
 
-void dawnDeviceLostCallback(WGPUDevice const* device, WGPUDeviceLostReason reason, WGPUStringView message, void* userdata) {
-	static const char* names[] = {"Undefined", "Unknown", "Destroyed", "InstanceDropped", "FailedCreation"};
+void dawnDeviceLostCallback(const wgpu::Device& device, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+	static const char* names[] = {"Undefined", "Unknown", "Destroyed", "CallbackCancelled", "FailedCreation"};
 
-	if (reason == WGPUDeviceLostReason_InstanceDropped) return;
+	// Device is lost when the instance goes away at shutdown, not an error.
+	if (reason == wgpu::DeviceLostReason::CallbackCancelled) return;
 
 	auto rname = (uint32_t)reason < std::size(names) ? names[(uint32_t)reason] : "OOPS";
 
@@ -56,8 +79,8 @@ void dawnDeviceLostCallback(WGPUDevice const* device, WGPUDeviceLostReason reaso
 	SGD_ERROR(String("Dawn device lost: ") + rname + "\n" + wgpuStringViewToString(message));
 }
 
-void dawnErrorCallback(WGPUErrorType type, WGPUStringView message, void*) {
-	static const char* names[] = {"Undefined", "NoError", "Validation", "Out of memory", "Internal", "Unknown", "Device lost"};
+void dawnErrorCallback(const wgpu::Device& device, wgpu::ErrorType type, wgpu::StringView message) {
+	static const char* names[] = {"Undefined", "NoError", "Validation", "Out of memory", "Internal", "Unknown"};
 
 	auto tname = (uint32_t)type < std::size(names) ? names[(uint32_t)type] : "OOPS";
 
@@ -67,24 +90,24 @@ void dawnErrorCallback(WGPUErrorType type, WGPUStringView message, void*) {
 	SGD_ABORT();
 }
 
-void dawnLoggingCallback(WGPULoggingType type, WGPUStringView message, void*) {
+void dawnLoggingCallback(wgpu::LoggingType type, wgpu::StringView message) {
 	static const char* names[] = {"???", "Verbose", "Info", "Warning", "Error"};
 
 	auto tname = (uint32_t)type < std::size(names) ? names[(uint32_t)type] : "OOPS";
 
 	switch (type) {
-	case WGPULoggingType_Verbose:
+	case wgpu::LoggingType::Verbose:
 #if SGD_CONFIG_DEBUG
 		SGD_LOG << "Dawn:" << wgpuStringViewToString(message);
 #endif
 		break;
-	case WGPULoggingType_Info:
+	case wgpu::LoggingType::Info:
 		SGD_LOG << "Dawn info:" << wgpuStringViewToString(message);
 		break;
-	case WGPULoggingType_Warning:
+	case wgpu::LoggingType::Warning:
 		SGD_LOG << "Dawn warning:" << wgpuStringViewToString(message);
 		break;
-	case WGPULoggingType_Error:
+	case wgpu::LoggingType::Error:
 		SGD_LOG << "Dawn error:" << wgpuStringViewToString(message);
 		alert(String("Dawn error: ") + wgpuStringViewToString(message));
 		SGD_ABORT();
@@ -123,7 +146,6 @@ void logAdapterProps(const wgpu::Adapter& adapter) {
 	};
 	auto backendIt = backendTypes.find(info.backendType);
 	SGD_LOG << "Backend type:" << (backendIt != backendTypes.end() ? backendIt->second : "???");
-	SGD_LOG << "Compatibility mode:" << info.compatibilityMode;
 
 #if 0 // TODO
 	SGD_LOG << "";
@@ -174,7 +196,9 @@ const wgpu::Instance& getWGPUInstance() {
 	dawnProcSetProcs(&dawn::native::GetProcs());
 
 	wgpu::InstanceDescriptor desc{};
-	desc.features.timedWaitAnyEnable = true;
+	static const wgpu::InstanceFeatureName features[]{wgpu::InstanceFeatureName::TimedWaitAny};
+	desc.requiredFeatureCount = std::size(features);
+	desc.requiredFeatures = features;
 
 	return instance = wgpu::CreateInstance(&desc);
 }
@@ -182,11 +206,13 @@ const wgpu::Instance& getWGPUInstance() {
 void requestWGPUDevice(const wgpu::RequestAdapterOptions& adapterOptions,
 					   CFunction<void(const wgpu::Device& device)> callbackFunc) {
 
+	auto done = std::make_shared<bool>(false);
+
 	getWGPUInstance().RequestAdapter( //
 		&adapterOptions, wgpu::CallbackMode::AllowProcessEvents,
 		[=](wgpu::RequestAdapterStatus status, const wgpu::Adapter& adapter, char const* message) {
 			if (status != wgpu::RequestAdapterStatus::Success) {
-				SGD_ERROR("Dawn RequestAdapter() failed");
+				SGD_ERROR(String("Dawn RequestAdapter() failed: ") + (message ? message : ""));
 			}
 
 			logAdapterProps(adapter);
@@ -195,13 +221,15 @@ void requestWGPUDevice(const wgpu::RequestAdapterOptions& adapterOptions,
 				g_enabledToggles.push_back("allow_unsafe_apis");
 				if (!g_validationEnabled) g_enabledToggles.push_back("skip_validation");
 				if (!g_robustnessEnabled) g_enabledToggles.push_back("disable_robustness");
+				addEnvToggles("SGD_DAWN_ENABLE_TOGGLES", g_enabledToggles);
+				addEnvToggles("SGD_DAWN_DISABLE_TOGGLES", g_disabledToggles);
 			}
 
 			{
 				for (auto feature : {wgpu::FeatureName::TimestampQuery,		   //
 									 wgpu::FeatureName::Float32Filterable,	   //
 									 wgpu::FeatureName::Unorm16TextureFormats, //
-									 wgpu::FeatureName::Snorm16TextureFormats}) {
+									 wgpu::FeatureName::TextureFormatsTier1}) {
 					if (adapter.HasFeature(feature)) {
 						g_requiredFeatures.push_back(feature);
 					}
@@ -214,25 +242,40 @@ void requestWGPUDevice(const wgpu::RequestAdapterOptions& adapterOptions,
 				devDesc.nextInChain = &togglesDesc;
 				devDesc.requiredFeatureCount = g_requiredFeatures.size();
 				devDesc.requiredFeatures = g_requiredFeatures.data();
-				devDesc.deviceLostCallbackInfo.callback = &dawnDeviceLostCallback;
-				devDesc.uncapturedErrorCallbackInfo.callback = &dawnErrorCallback;
+				devDesc.SetDeviceLostCallback(wgpu::CallbackMode::AllowProcessEvents, &dawnDeviceLostCallback);
+				devDesc.SetUncapturedErrorCallback(&dawnErrorCallback);
 
 				togglesDesc.enabledToggleCount = g_enabledToggles.size();
 				togglesDesc.enabledToggles = g_enabledToggles.data();
+				togglesDesc.disabledToggleCount = g_disabledToggles.size();
+				togglesDesc.disabledToggles = g_disabledToggles.data();
 			}
 
 			adapter.RequestDevice( //
 				&devDesc, wgpu::CallbackMode::AllowProcessEvents,
 				[=](wgpu::RequestDeviceStatus status, const wgpu::Device& device, const char* message) {
 					if (status != wgpu::RequestDeviceStatus::Success) {
-						SGD_ERROR("Dawn RequestDevice() failed");
+						SGD_ERROR(String("Dawn RequestDevice() failed: ") + (message ? message : ""));
 					}
-					device.SetLoggingCallback(&dawnLoggingCallback, nullptr);
+					device.SetLoggingCallback(&dawnLoggingCallback);
 					callbackFunc(device);
+					*done = true;
 				});
-			getWGPUInstance().ProcessEvents();
 		});
+
+#if !SGD_OS_EMSCRIPTEN
+	// Callbacks are only delivered from ProcessEvents(), and the adapter/device requests can complete after the first
+	// call, so pump from out here until the device has arrived rather than relying on a single (or nested) call.
+	auto start = millis();
+	while (!*done) {
+		getWGPUInstance().ProcessEvents();
+		if (*done) break;
+		if (millis() - start > 30000) SGD_ERROR("Timed out waiting for Dawn adapter/device");
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+#else
 	getWGPUInstance().ProcessEvents();
+#endif
 }
 
 wgpu::Device createWGPUDevice(const wgpu::RequestAdapterOptions& adapterOptions) {
@@ -270,18 +313,18 @@ wgpu::Surface createWGPUSurface(const wgpu::Device& device, GLFWwindow* window) 
 	runOnMainThread(
 		[&] {
 #if SGD_OS_WINDOWS
-			wgpu::SurfaceDescriptorFromWindowsHWND nativeDesc{};
+			wgpu::SurfaceSourceWindowsHWND nativeDesc{};
 			nativeDesc.hwnd = glfwGetWin32Window(window);
 			nativeDesc.hinstance = GetModuleHandle(nullptr);
 #elif SGD_OS_LINUX
-			wgpu::SurfaceDescriptorFromXlibWindow nativeDesc{};
+			wgpu::SurfaceSourceXlibWindow nativeDesc{};
 			nativeDesc.window = glfwGetX11Window(window);
 			nativeDesc.display = glfwGetX11Display();
 #elif SGD_OS_MACOS
-			wgpu::SurfaceDescriptorFromMetalLayer nativeDesc{};
+			wgpu::SurfaceSourceMetalLayer nativeDesc{};
 			nativeDesc.layer = createMetalLayer(window);
 #elif SGD_OS_EMSCRIPTEN
-			wgpu::SurfaceDescriptorFromCanvasHTMLSelector nativeDesc{};
+			wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector nativeDesc{};
 			nativeDesc.selector = "#canvas";
 #endif
 			wgpu::SurfaceDescriptor surfaceDesc{};

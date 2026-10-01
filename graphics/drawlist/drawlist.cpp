@@ -16,14 +16,14 @@ auto shaderSource{
 };
 
 wgpu::VertexAttribute vertexBufferAttribs[]{
-	{wgpu::VertexFormat::Float32x3, 0, 0},	// Vec3f position
-	{wgpu::VertexFormat::Float32x3, 12, 1}, // Vec3f texCoords0
-	{wgpu::VertexFormat::Float32x4, 24, 2}, // Vec4f color
+	{nullptr, wgpu::VertexFormat::Float32x3, 0, 0},	// Vec3f position
+	{nullptr, wgpu::VertexFormat::Float32x3, 12, 1}, // Vec3f texCoords0
+	{nullptr, wgpu::VertexFormat::Float32x4, 24, 2}, // Vec4f color
 };
 
 static_assert(sizeof(DrawList::Vertex) == 40);
 
-wgpu::VertexBufferLayout const vertexBufferLayout{sizeof(DrawList::Vertex), wgpu::VertexStepMode::Vertex,
+wgpu::VertexBufferLayout const vertexBufferLayout{nullptr, wgpu::VertexStepMode::Vertex, sizeof(DrawList::Vertex),
 												  std::size(vertexBufferAttribs), vertexBufferAttribs};
 
 BindGroupDescriptor bindGroupDescriptor( //

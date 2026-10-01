@@ -42,6 +42,10 @@ struct ImGuiProcs {
 	void (ImGuiIO::*AddInputCharacter)(unsigned int);
 	void (ImGuiIO::*SetKeyEventNativeData)(enum ImGuiKey, int, int, int);
 
+	// struct ImGuiPlatformIO members
+	void (ImGuiPlatformIO::*ClearPlatformHandlers)();
+	void (ImGuiPlatformIO::*ClearRendererHandlers)();
+
 	// struct ImGuiStorage members
 	void* (ImGuiStorage::*GetVoidPtr)(ImGuiID key) const;
 	void (ImGuiStorage::*SetVoidPtr)(ImGuiID key, void* value);
@@ -68,6 +72,8 @@ ImGuiProcs procs{&ImHashData, //
 				 &ImGuiIO::AddFocusEvent,
 				 &ImGuiIO::AddInputCharacter,
 				 &ImGuiIO::SetKeyEventNativeData,
+				 &ImGuiPlatformIO::ClearPlatformHandlers,
+				 &ImGuiPlatformIO::ClearRendererHandlers,
 				 &ImGuiStorage::GetVoidPtr,
 				 &ImGuiStorage::SetVoidPtr,
 				 &ImFontAtlas::GetTexDataAsRGBA32};

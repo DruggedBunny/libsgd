@@ -73,7 +73,9 @@ int main() {
 	{
 		dawnProcSetProcs(&dawn::native::GetProcs());
 		wgpu::InstanceDescriptor desc{};
-		desc.features.timedWaitAnyEnable = true;
+		static const wgpu::InstanceFeatureName instanceFeatures[]{wgpu::InstanceFeatureName::TimedWaitAny};
+		desc.requiredFeatureCount = 1;
+		desc.requiredFeatures = instanceFeatures;
 		wgpuInstance = wgpu::CreateInstance(&desc);
 		assert(wgpuInstance);
 	}
@@ -106,7 +108,7 @@ int main() {
 
 	// Create and configure surface
 	{
-		wgpu::SurfaceDescriptorFromWindowsHWND nativeDesc{};
+		wgpu::SurfaceSourceWindowsHWND nativeDesc{};
 		nativeDesc.hwnd = glfwGetWin32Window(glfwWindow);
 		nativeDesc.hinstance = GetModuleHandle(nullptr);
 		wgpu::SurfaceDescriptor surfaceDesc{};
@@ -136,7 +138,7 @@ int main() {
 	// Create pipeline
 	{
 		// Compile shader
-		wgpu::ShaderModuleWGSLDescriptor wgslDesc{};
+		wgpu::ShaderSourceWGSL wgslDesc{};
 		wgslDesc.sType = wgpu::SType::ShaderModuleWGSLDescriptor;
 		wgslDesc.code = shaderSource;
 		wgpu::ShaderModuleDescriptor desc{};
@@ -208,7 +210,7 @@ int main() {
 				wgpuWorkDone.id = 0;
 			}
 			wgpuWorkDone = wgpuDevice.GetQueue().OnSubmittedWorkDone(
-				wgpu::CallbackMode::WaitAnyOnly, [](wgpu::QueueWorkDoneStatus status) {});
+				wgpu::CallbackMode::WaitAnyOnly, [](wgpu::QueueWorkDoneStatus status, char const* message) {});
 		}
 
 		// End rendering (begin on GPU!)

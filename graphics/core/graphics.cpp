@@ -171,7 +171,9 @@ void GraphicsContext::present(CTexture* texture) {
 //		auto end = micros();
 //		SGD_LOG << "###" << (end-begin) << "micros";
 
-		if (surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::Success) {
+		// SuccessSuboptimal means the surface should be reconfigured soon but the texture is still usable.
+		if (surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal &&
+			surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessSuboptimal) {
 			SGD_ERROR("wgpu::Surface::GetCurrentTexture() failed.");
 			return;
 		}

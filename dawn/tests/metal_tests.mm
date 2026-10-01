@@ -64,7 +64,9 @@ void createWindow() {
 void createInstance() {
 	dawnProcSetProcs(&dawn::native::GetProcs());
 	wgpu::InstanceDescriptor desc{};
-	desc.features.timedWaitAnyEnable = true;
+	static const wgpu::InstanceFeatureName instanceFeatures[]{wgpu::InstanceFeatureName::TimedWaitAny};
+	desc.requiredFeatureCount = 1;
+	desc.requiredFeatures = instanceFeatures;
 	wgpuInstance = wgpu::CreateInstance(&desc);
 	assert(wgpuInstance);
 }
@@ -116,7 +118,7 @@ void createSurface(){
 	// Use retina if the window was created with retina support.
 	[[view layer] setContentsScale:[nsWindow backingScaleFactor]];
 
-	wgpu::SurfaceDescriptorFromMetalLayer nativeDesc{};
+	wgpu::SurfaceSourceMetalLayer nativeDesc{};
 	nativeDesc.layer = [view layer];
 
 	wgpu::SurfaceDescriptor surfaceDesc{};

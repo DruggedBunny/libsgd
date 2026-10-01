@@ -4,6 +4,7 @@
 
 #include "internal.h"
 
+#include <imgui_internal.h> // ImGui::GetIO(ImGuiContext*)
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_wgpu.h>
 
@@ -36,6 +37,10 @@ struct ImGuiProcs {
 	void (ImGuiIO::*AddFocusEvent)(bool);
 	void (ImGuiIO::*AddInputCharacter)(unsigned int);
 	void (ImGuiIO::*SetKeyEventNativeData)(enum ImGuiKey, int, int, int);
+
+	// struct ImGuiPlatformIO members
+	void (ImGuiPlatformIO::*ClearPlatformHandlers)();
+	void (ImGuiPlatformIO::*ClearRendererHandlers)();
 
 	// struct ImGuiStorage members
 	void* (ImGuiStorage::*GetVoidPtr)(ImGuiID key) const;
@@ -187,6 +192,19 @@ ImGuiIO& ImGui::GetIO() {
 
 ImGuiPlatformIO& ImGui::GetPlatformIO() {
 	return g_procs.GetPlatformIO();
+}
+
+// Context-taking overload used by newer backends; the host supplies a single current context.
+ImGuiIO& ImGui::GetIO(ImGuiContext*) {
+	return g_procs.GetIO();
+}
+
+void ImGuiPlatformIO::ClearPlatformHandlers() {
+	return (this->*g_procs.ClearPlatformHandlers)();
+}
+
+void ImGuiPlatformIO::ClearRendererHandlers() {
+	return (this->*g_procs.ClearRendererHandlers)();
 }
 
 void ImGuiIO::AddKeyEvent(enum ImGuiKey key, bool bown) {
