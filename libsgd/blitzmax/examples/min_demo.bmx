@@ -119,7 +119,7 @@ SGD.TransformTexCoords (ground_mesh, ground_scale, ground_scale, 0.0, 0.0)
 Local cube:Int			= SGD.CreateModel (0)
 Local cube_material:Int	= SGD.CreatePBRMaterial ()
 Local cube_size:Float	= 1.0
-Local cube_mesh			= SGD.CreateBoxMesh (-cube_size * 0.5, -cube_size * 0.5, -cube_size * 0.5, cube_size * 0.5, cube_size * 0.5, cube_size * 0.5, cube_material)
+Local cube_mesh:Int		= SGD.CreateBoxMesh (-cube_size * 0.5, -cube_size * 0.5, -cube_size * 0.5, cube_size * 0.5, cube_size * 0.5, cube_size * 0.5, cube_material)
 
 SGD.SetMeshShadowsEnabled cube_mesh, True ' CUBE CASTS SHADOW
 

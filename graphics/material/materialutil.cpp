@@ -117,6 +117,9 @@ Material* createPBRMaterial() {
 }
 
 Expected<Material*, FileioEx> loadPBRMaterial(CPath path) {
+	static const Set<String> imgExts{".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".exr"};
+	if (imgExts.find(toLower(path.ext())) == imgExts.end()) return loadMaterial(path);
+
 	auto texture = load2DTexture(path, TextureFormat::any, TextureFlags::default_);
 	if (!texture) return texture.error();
 

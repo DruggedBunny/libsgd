@@ -214,8 +214,7 @@ fn evaluateLighting(position: vec3f, normal: vec3f, albedo: vec4f, emissive: vec
         let vpos = (scene_camera.viewMatrix * vec4f(position, 1.0)).xyz;
 
         if vpos.z >= scene_config.csmSplitDistances.w {
-            return vec4(1,1,0,1);
-//            continue;
+            continue;
         }
 
         var split = i * 4;

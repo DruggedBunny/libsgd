@@ -17,6 +17,14 @@ Joins the LibSFD discussion at https://skirmish-dev.net/forum
 Help support LibSGD at https://patreon.com/libsgd
 
 
+### Assets
+
+`sgd://` asset paths (used by the demos and tests) are resolved from local disk only; nothing is downloaded. The asset root is searched in this order:
+
+* config var `sgd.assetsDir` (set with `sgd_SetConfigVar` before `sgd_Init`)
+* environment variable `LIBSGD_ASSETS`
+* `~/.sgd/assets`
+
 ### CMake build instuctions for 64bit Windows 10
 
 * Install git, cmake, python3 and MSVC (I use the free 2022 Community Edition).
