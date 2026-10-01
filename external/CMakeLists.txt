@@ -159,6 +159,9 @@ target_link_libraries(soloud ${LIBS})
 
 ##### json11 #####
 
+# json11 declares cmake_minimum_required 2.8, which CMake 4 rejects.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 FetchContent_Declare(json11
 	GIT_REPOSITORY https://github.com/blitz-research/json11.git
 	GIT_TAG master
