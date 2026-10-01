@@ -174,10 +174,9 @@ FetchContent_MakeAvailable(json11)
 add_library(stb INTERFACE)
 
 FetchContent_Declare(stb
-	GIT_REPOSITORY https://github.com/blitz-research/stb.git
-	GIT_TAG master
+	GIT_REPOSITORY https://github.com/nothings/stb.git
+	GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20 # master, 2026-08-02
 	GIT_SUBMODULES ""
-	GIT_SHALLOW TRUE
 	EXCLUDE_FROM_ALL
 )
 
